@@ -34,3 +34,10 @@ class BookingCreate(BaseModel):
     quantity: int
     startDate: str
     endDate: str
+
+class AvailabilityResponse(BaseModel):
+    equipmentId: int
+    available: bool
+    requestedQuantity: int
+    availableQuantity: int
+    overlappingQuantity: int
