@@ -3,6 +3,7 @@ import type { EquipmentResponse } from "../types";
 
 const api = axios.create({
   baseURL: "http://localhost:8000",
+  timeout: 5000
 });
 
 export const getEquipmentList = async (): Promise<EquipmentResponse> => {

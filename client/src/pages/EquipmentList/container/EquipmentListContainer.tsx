@@ -1,35 +1,37 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import EquipmentGrid from "../components/EquipmentGrid";
 import type { Equipment } from "../../../types";
+import { getEquipmentList } from "../../../services/api";
 
-const mockEquipment: Equipment[] = [
-  {
-    id: 1,
-    name: "Canon EOS R6",
-    category: "Camera",
-    pricePerDay: 120,
-    availableQuantity: 3,
-    imageUrl: "https://picsum.photos/200/140?random=1",
-  },
-  {
-    id: 2,
-    name: "Sony A7 III",
-    category: "Camera",
-    pricePerDay: 140,
-    availableQuantity: 2,
-    imageUrl: "https://picsum.photos/200/140?random=2",
-  },
-  {
-    id: 3,
-    name: "Tripod Pro",
-    category: "Accessories",
-    pricePerDay: 35,
-    availableQuantity: 5,
-    imageUrl: "https://picsum.photos/200/140?random=3",
-  },
-];
+const EquipmentListContainer: React.FC = () => { //creat Container Component
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]); //The stats of equipmentList
+  const [loading, setLoading] = useState(true); //loading state
+  const [error, setError] = useState("");
 
-const EquipmentListContainer: React.FC = () => {
+  useEffect(() => { 
+    const fetchEquipment = async () => { // the func wich bring the data from the server
+      try {
+        const data = await getEquipmentList(); //API call
+        setEquipmentList(data.items);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load equipment");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEquipment();
+  }, []);
+
+  if (loading) {
+    return <div style={{ padding: "24px" }}>Loading equipment...</div>;
+  }
+
+  if (error) {
+    return <div style={{ padding: "24px" }}>{error}</div>;
+  }
+
   return (
     <div
       style={{
@@ -39,7 +41,7 @@ const EquipmentListContainer: React.FC = () => {
       }}
     >
       <h1 style={{ marginBottom: "32px" }}>Available Equipment</h1>
-      <EquipmentGrid equipmentList={mockEquipment} />
+      <EquipmentGrid equipmentList={equipmentList} />
     </div>
   );
 };
