@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import EquipmentDetailsView from "../components/EquipmentDetailsView";
-import { getEquipmentById, createBooking } from "../../../services/api";
+import { getEquipmentById, createBooking, checkAvailability } from "../../../services/api";
 import type { Equipment } from "../../../types";
 
 const EquipmentDetailsContainer: React.FC = () => {
@@ -11,6 +11,16 @@ const EquipmentDetailsContainer: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [availabilityError, setAvailabilityError] = useState("");
+  const [availabilityResult, setAvailabilityResult] = useState<null | {
+    equipmentId: number;
+    available: boolean;
+    requestedQuantity: number;
+    availableQuantity: number;
+    overlappingQuantity: number;
+  }>(null);
 
   useEffect(() => {
     const fetchEquipment = async () => {
@@ -33,6 +43,31 @@ const EquipmentDetailsContainer: React.FC = () => {
     fetchEquipment();
   }, [id]);
 
+  const handleCheckAvailability = async () => {
+    if (!equipment) return;
+
+    if (!startDate || !endDate) {
+      setAvailabilityError("Please select start and end dates");
+      setAvailabilityResult(null);
+      return;
+    }
+
+    try {
+      const result = await checkAvailability(
+        equipment.id,
+        startDate,
+        endDate,
+        quantity
+      );
+
+      setAvailabilityResult(result);
+      setAvailabilityError("");
+    } catch (err) {
+      setAvailabilityError("Failed to check availability");
+      setAvailabilityResult(null);
+    }
+  };
+
   const handleBooking = async () => {
     if (!equipment) return;
 
@@ -40,11 +75,11 @@ const EquipmentDetailsContainer: React.FC = () => {
       await createBooking({
         equipmentId: equipment.id,
         quantity: quantity,
-        startDate: "2026-03-10",
-        endDate: "2026-03-12",
+        startDate: startDate,
+        endDate: endDate,
       });
 
-      window.location.reload();
+      alert("Booking created successfully");
     } catch (err) {
       alert("Failed to create booking");
     }
@@ -59,7 +94,14 @@ const EquipmentDetailsContainer: React.FC = () => {
     equipment={equipment}
     quantity={quantity}
     setQuantity={setQuantity}
+    startDate={startDate}
+    setStartDate={setStartDate}
+    endDate={endDate}
+    setEndDate={setEndDate}
     onBook={handleBooking}
+    onCheckAvailability={handleCheckAvailability}
+    availabilityResult={availabilityResult}
+    availabilityError={availabilityError}
   />
 );
 };

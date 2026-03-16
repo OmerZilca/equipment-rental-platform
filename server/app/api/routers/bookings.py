@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from app.schemas.pydantic import BookingCreate
-from app.services.bookings_service import create_booking_service, BOOKINGS
+from app.services.bookings_service import create_booking_service, BOOKINGS, check_equipment_availability
 
 router = APIRouter(prefix="/api/bookings", tags=["bookings"])
 
@@ -11,6 +11,21 @@ def list_bookings():
         "items": BOOKINGS,
         "total": len(BOOKINGS)
     }
+
+
+@router.get("/check-availability")
+def check_availability(
+    equipment_id: int,
+    start_date: str,
+    end_date: str,
+    quantity: int,
+):
+    return check_equipment_availability(
+        equipment_id=equipment_id,
+        start_date=start_date,
+        end_date=end_date,
+        quantity=quantity,
+    )
 
 
 @router.post("")
