@@ -14,10 +14,6 @@ export const getEquipmentById = async (id: string): Promise<Equipment> => {
   const response = await api.get<Equipment>(`/api/equipment/${id}`);
   return response.data;
 };
-export const getBookings = async () => {
-  const response = await api.get("/api/bookings");
-  return response.data;
-};
 
 export const createBooking = async (booking: {
   equipmentId: number;
@@ -28,4 +24,28 @@ export const createBooking = async (booking: {
   const response = await api.post("/api/bookings", booking);
   return response.data;
 };
+
+export const getBookings = async () => {
+  const response = await api.get("/api/bookings");
+  return response.data;
+};
+
+export const checkAvailability = async (
+  equipmentId: number,
+  startDate: string,
+  endDate: string,
+  quantity: number
+) => {
+  const response = await api.get("/api/bookings/check-availability", {
+    params: {
+      equipment_id: equipmentId,
+      start_date: startDate,
+      end_date: endDate,
+      quantity: quantity,
+    },
+  });
+
+  return response.data;
+};
+
 export default api;
