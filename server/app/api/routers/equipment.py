@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
+from sqlalchemy.orm import Session
+
 from app.services.inventory import get_available_equipment_list, get_equipment_by_id
 from app.schemas.pydantic import EquipmentListResponse, AvailabilityResponse, EquipmentOut
 from app.services.bookings_service import check_equipment_availability
+from app.db.database import get_db
 
 router = APIRouter(prefix="/api/equipment", tags=["equipment"])
 
@@ -27,8 +30,10 @@ def get_equipment_availability(
     startDate: str = Query(...),
     endDate: str = Query(...),
     quantity: int = Query(...),
+    db: Session = Depends(get_db),
 ):
     return check_equipment_availability(
+        db=db,
         equipment_id=equipment_id,
         start_date=startDate,
         end_date=endDate,

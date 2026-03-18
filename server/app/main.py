@@ -1,15 +1,15 @@
 from fastapi import FastAPI
-from app.api.routers import equipment, bookings
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import Base, engine
 from app.db import models
 
+from app.api.routers import bookings
+
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
-app.include_router(equipment.router)
 app.include_router(bookings.router)
 
 app.add_middleware(
@@ -19,6 +19,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/")
 def root():

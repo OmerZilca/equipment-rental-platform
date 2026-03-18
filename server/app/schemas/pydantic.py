@@ -1,43 +1,52 @@
-
 from enum import Enum
 from pydantic import BaseModel
+from datetime import date
 
 
-class EquipmentOut(BaseModel):
+class ProductOut(BaseModel):
     id: int
-    name: str
-    category: str
+    storeId: int
+    productName: str
+    description: str | None
+    category: str | None
     pricePerDay: float
-    availableQuantity: int
-    imageUrl: str
+    depositAmount: float
+    totalQuantity: int
+    imageUrl: str | None
 
 
-class EquipmentListResponse(BaseModel):
-    items: list[EquipmentOut]
+class ProductListResponse(BaseModel):
+    items: list[ProductOut]
     total: int
 
 
-class UserRole(str, Enum):
-    GUEST = "guest"
-    CUSTOMER = "customer"
-    STORE_OWNER = "store_owner"
-
-
-class UserOut(BaseModel):
-    id: int
-    fullName: str
-    email: str
-    role: UserRole
-
-class BookingCreate(BaseModel):
-    equipmentId: int
+class BookingItemCreate(BaseModel):
+    productId: int
     quantity: int
-    startDate: str
-    endDate: str
 
-class AvailabilityResponse(BaseModel):
-    equipmentId: int
-    available: bool
-    requestedQuantity: int
-    availableQuantity: int
-    overlappingQuantity: int
+#Validation
+class BookingCreate(BaseModel):
+    customerId: int
+    storeId: int
+    startDate: date
+    endDate: date
+    items: list[BookingItemCreate]
+
+
+class BookingItemOut(BaseModel):
+    productId: int
+    quantity: int
+    pricePerDay: float
+    depositAmount: float
+
+
+class BookingOut(BaseModel):
+    id: int
+    customerId: int
+    storeId: int
+    startDate: date
+    endDate: date
+    status: str
+    totalPrice: float
+    depositAmount: float
+    items: list[BookingItemOut]
