@@ -1,96 +1,75 @@
-from datetime import date
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
+from datetime import date
+
+from app.db.models import Booking, BookingItem, Product
 from app.schemas.pydantic import BookingCreate
-from app.services.inventory import get_equipment_by_id
-
-BOOKINGS = []
 
 
-def dates_overlap(start_1: str, end_1: str, start_2: str, end_2: str) -> bool:
-    start_date_1 = date.fromisoformat(start_1)
-    end_date_1 = date.fromisoformat(end_1)
-    start_date_2 = date.fromisoformat(start_2)
-    end_date_2 = date.fromisoformat(end_2)
+def create_booking_service(db: Session, booking: BookingCreate):
 
-    return start_date_1 <= end_date_2 and start_date_2 <= end_date_1
+    if booking.startDate > booking.endDate:
+        raise HTTPException(status_code=400, detail="Invalid date range")
 
-def check_equipment_availability(
-    equipment_id: int,
-    start_date: str,
-    end_date: str,
-    quantity: int,
-):
-    equipment = get_equipment_by_id(equipment_id)
+    total_price = 0
+    total_deposit = 0
 
-    if equipment is None:
-        raise HTTPException(status_code=404, detail="Equipment not found")
+    products = {}
 
-    if quantity <= 0:
-        raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
+    # בדיקת מוצרים וחישוב מחיר
+    for item in booking.items:
 
-    overlapping_quantity = 0
+        product = db.query(Product).filter(Product.id == item.productId).first()
 
-    for existing_booking in BOOKINGS:
-        is_same_equipment = existing_booking["equipmentId"] == equipment_id
-        has_date_overlap = dates_overlap(
-            existing_booking["startDate"],
-            existing_booking["endDate"],
-            start_date,
-            end_date,
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {item.productId} not found")
+
+        if item.quantity > product.total_quantity:
+            raise HTTPException(status_code=400, detail="Not enough quantity available")
+
+        days = (booking.endDate - booking.startDate).days or 1
+
+        price = item.quantity * product.price_per_day * days
+        deposit = item.quantity * product.deposit_amount
+
+        total_price += price
+        total_deposit += deposit
+
+        products[item.productId] = product
+
+    # יצירת booking
+    new_booking = Booking(
+        customer_id=booking.customerId,
+        store_id=booking.storeId,
+        start_date=booking.startDate,
+        end_date=booking.endDate,
+        total_price=total_price,
+        deposit_amount=total_deposit,
+        status="confirmed"
+    )
+
+    db.add(new_booking)
+    db.commit()
+    db.refresh(new_booking)
+
+    # יצירת booking items
+    for item in booking.items:
+
+        product = products[item.productId]
+
+        booking_item = BookingItem(
+            booking_id=new_booking.id,
+            product_id=item.productId,
+            quantity=item.quantity,
+            price_per_day=product.price_per_day,
+            deposit_amount=product.deposit_amount
         )
 
-        if is_same_equipment and has_date_overlap:
-            overlapping_quantity += existing_booking["quantity"]
+        db.add(booking_item)
 
-    total_requested_quantity = overlapping_quantity + quantity
-    is_available = total_requested_quantity <= equipment["availableQuantity"]
-
-    return {
-        "equipmentId": equipment_id,
-        "available": is_available,
-        "requestedQuantity": quantity,
-        "availableQuantity": equipment["availableQuantity"],
-        "overlappingQuantity": overlapping_quantity,
-    }
-
-def create_booking_service(booking: BookingCreate):
-    equipment = get_equipment_by_id(booking.equipmentId)
-
-    if equipment is None:
-        raise HTTPException(status_code=404, detail="Equipment not found")
-
-    if booking.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
-
-    if booking.quantity > equipment["availableQuantity"]:
-        raise HTTPException(status_code=400, detail="Not enough equipment available")
-
-    overlapping_quantity = 0
-
-    for existing_booking in BOOKINGS:
-        is_same_equipment = existing_booking["equipmentId"] == booking.equipmentId
-        has_date_overlap = dates_overlap(
-            existing_booking["startDate"],
-            existing_booking["endDate"],
-            booking.startDate,
-            booking.endDate,
-        )
-
-        if is_same_equipment and has_date_overlap:
-            overlapping_quantity += existing_booking["quantity"]
-
-    total_requested_quantity = overlapping_quantity + booking.quantity
-
-    if total_requested_quantity > equipment["availableQuantity"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Not enough equipment available for the selected dates",
-        )
-
-    booking_dict = booking.model_dump()
-    BOOKINGS.append(booking_dict)
+    db.commit()
 
     return {
         "message": "Booking created successfully",
-        "booking": booking_dict,
+        "bookingId": new_booking.id
     }
