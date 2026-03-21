@@ -25,14 +25,14 @@ EQUIPMENT_ITEMS = [
     },
 ]
 
-
+# Return all available equipment items and total count
 def get_available_equipment_list():
     return {
         "items": EQUIPMENT_ITEMS,
         "total": len(EQUIPMENT_ITEMS),
     }
 
-
+# Find and return a single equipment item by its ID
 def get_equipment_by_id(equipment_id: int):
     for item in EQUIPMENT_ITEMS:
         if item["id"] == equipment_id:

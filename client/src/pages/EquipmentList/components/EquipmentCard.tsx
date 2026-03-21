@@ -1,3 +1,10 @@
+/**
+ * Equipment card component.
+ *
+ * Displays a single equipment item as a clickable card.
+ * Shows basic details (image, name, category, price, availability)
+ * and navigates to the equipment details page when clicked.
+ */
 import React from "react";
 import { Link } from "react-router-dom";
 import type { Equipment } from "../../../types";
