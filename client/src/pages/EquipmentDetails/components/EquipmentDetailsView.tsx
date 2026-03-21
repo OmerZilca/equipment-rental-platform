@@ -1,3 +1,10 @@
+/**
+ * Equipment details view component.
+ *
+ * Displays equipment information, allows the user to select dates and quantity,
+ * check availability, and create a booking.
+ * This component is responsible only for UI (presentation).
+ */
 import React from "react";
 import type { Equipment } from "../../../types";
 

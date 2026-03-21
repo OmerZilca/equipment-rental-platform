@@ -1,4 +1,15 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, DateTime
+
+"""
+Database models.
+
+Defines the main tables in the system:
+- Product: equipment available for rent
+- Booking: a customer order with dates and total price
+- BookingItem: links products to a booking with quantity and pricing
+
+These models represent the database structure and relationships.
+"""
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Date, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -60,3 +71,13 @@ class BookingItem(Base):
 
     booking = relationship("Booking", back_populates="items")
     product = relationship("Product", back_populates="booking_items")
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String(100), nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    phone_number = Column(String(20), nullable=True)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False)

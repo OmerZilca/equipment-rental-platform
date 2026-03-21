@@ -1,3 +1,11 @@
+/**
+ * Equipment details container.
+ *
+ * This component handles the logic of the equipment details page.
+ * It gets the equipment ID from the URL, fetches equipment data,
+ * manages page state, checks availability, creates bookings,
+ * and passes data and actions to the view component.
+ */
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import EquipmentDetailsView from "../components/EquipmentDetailsView";
@@ -6,13 +14,17 @@ import type { Equipment } from "../../../types";
 
 const EquipmentDetailsContainer: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-
+ // State for equipment data and page status
   const [equipment, setEquipment] = useState<Equipment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  // State for booking form values
   const [quantity, setQuantity] = useState(1);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  
+  // State for availability check result and error message
   const [availabilityError, setAvailabilityError] = useState("");
   const [availabilityResult, setAvailabilityResult] = useState<null | {
     equipmentId: number;
@@ -21,7 +33,8 @@ const EquipmentDetailsContainer: React.FC = () => {
     availableQuantity: number;
     overlappingQuantity: number;
   }>(null);
-
+  
+  // Fetch equipment details when the page loads or when the ID changes
   useEffect(() => {
     const fetchEquipment = async () => {
       if (!id) {
@@ -42,7 +55,7 @@ const EquipmentDetailsContainer: React.FC = () => {
 
     fetchEquipment();
   }, [id]);
-
+  // Check equipment availability for selected dates and quantity
   const handleCheckAvailability = async () => {
     if (!equipment) return;
 
@@ -67,6 +80,7 @@ const EquipmentDetailsContainer: React.FC = () => {
       setAvailabilityResult(null);
     }
   };
+  // Create a booking for the selected equipment
 
   const handleBooking = async () => {
     if (!equipment) return;
@@ -88,7 +102,7 @@ const EquipmentDetailsContainer: React.FC = () => {
   if (loading) return <p>Loading equipment details...</p>;
   if (error) return <p>{error}</p>;
   if (!equipment) return <p>Equipment not found</p>;
-
+  // Pass data and actions to the view component
   return (
   <EquipmentDetailsView
     equipment={equipment}

@@ -1,18 +1,27 @@
+/**
+ * Bookings container component.
+ *
+ * Fetches bookings data from the API when the component loads,
+ * manages loading and error states, and displays the list of bookings.
+ */
 import React, { useEffect, useState } from "react";
 import { getBookings } from "../../../services/api";
 
+// Type definition for a booking object
 type Booking = {
   equipmentId: number;
   quantity: number;
   startDate: string;
   endDate: string;
 };
-
+// State to store
 const BookingsContainer: React.FC = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
+  
+  // Runs once when the component loads
+  // Fetches bookings data from the API
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -27,10 +36,11 @@ const BookingsContainer: React.FC = () => {
 
     fetchBookings();
   }, []);
-
+  // Show loading message while fetching data
   if (loading) return <p>Loading bookings...</p>;
   if (error) return <p>{error}</p>;
-
+  
+  // Render bookings list
   return (
     <div style={{ padding: "24px" }}>
       <h1>Bookings</h1>
