@@ -1,88 +1,191 @@
 """
-Create a new booking.
+Booking services.
 
-This function checks the booking dates, verifies that the requested
-products exist and have enough quantity, calculates the total price
-and deposit, saves the booking and its items in the database,
-and returns a success response.
+Contains the business logic for:
+- creating bookings with multiple booking items
+- checking product availability for a given date range
+- retrieving bookings by customer
+- retrieving bookings by store
+- cancelling bookings
 """
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
+
 from datetime import date
 
-from app.db.models import Booking, BookingItem, Product
+from fastapi import HTTPException
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.db.models import Booking, BookingItem, Product, Store, User
 from app.schemas.booking import BookingCreate
 
-def create_booking_service(db: Session, booking: BookingCreate):
-   # Check that the date range is valid
+
+def _build_booking_response(booking: Booking):
+    items = [
+        {
+            "productId": item.product_id,
+            "quantity": item.quantity,
+            "pricePerDay": item.price_per_day,
+            "depositAmount": item.deposit_amount,
+        }
+        for item in booking.items
+    ]
+
+    return {
+        "id": booking.id,
+        "customerId": booking.customer_id,
+        "storeId": booking.store_id,
+        "startDate": booking.start_date,
+        "endDate": booking.end_date,
+        "status": booking.status,
+        "totalPrice": booking.total_price,
+        "depositAmount": booking.deposit_amount,
+        "items": items,
+    }
+
+
+def create_booking_service(db: Session, booking: BookingCreate, customer_id: int):
     if booking.startDate > booking.endDate:
         raise HTTPException(status_code=400, detail="Invalid date range")
 
+    customer = db.query(User).filter(User.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    store = db.query(Store).filter(Store.id == booking.storeId).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    if not booking.items:
+        raise HTTPException(status_code=400, detail="Booking must include at least one item")
+
     total_price = 0
     total_deposit = 0
+    products_map = {}
 
-    products = {}
+    rental_days = (booking.endDate - booking.startDate).days + 1
 
-    # Check products and calculate total price/deposit
     for item in booking.items:
+        if item.quantity <= 0:
+            raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
 
         product = db.query(Product).filter(Product.id == item.productId).first()
-
         if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.productId} not found")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Product {item.productId} not found"
+            )
 
-        if item.quantity > product.total_quantity:
-            raise HTTPException(status_code=400, detail="Not enough quantity available")
+        if product.store_id != booking.storeId:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Product {item.productId} does not belong to store {booking.storeId}"
+            )
 
-        days = (booking.endDate - booking.startDate).days or 1
+        overlapping_quantity = (
+            db.query(func.coalesce(func.sum(BookingItem.quantity), 0))
+            .join(Booking, Booking.id == BookingItem.booking_id)
+            .filter(BookingItem.product_id == item.productId)
+            .filter(Booking.start_date <= booking.endDate)
+            .filter(Booking.end_date >= booking.startDate)
+            .filter(Booking.status != "cancelled")
+            .scalar()
+        )
 
-        price = item.quantity * product.price_per_day * days
-        deposit = item.quantity * product.deposit_amount
+        available_quantity = product.total_quantity - overlapping_quantity
 
-        total_price += price
-        total_deposit += deposit
+        if item.quantity > available_quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not enough quantity available for product {item.productId}"
+            )
 
-        products[item.productId] = product
+        item_total_price = item.quantity * product.price_per_day * rental_days
+        item_total_deposit = item.quantity * product.deposit_amount
 
-    # Create the main booking record
+        total_price += item_total_price
+        total_deposit += item_total_deposit
+
+        products_map[item.productId] = product
+
     new_booking = Booking(
-        customer_id=booking.customerId,
+        customer_id=customer_id,
         store_id=booking.storeId,
         start_date=booking.startDate,
         end_date=booking.endDate,
+        status="confirmed",
         total_price=total_price,
         deposit_amount=total_deposit,
-        status="confirmed"
     )
-    # Save booking to the database
 
     db.add(new_booking)
     db.commit()
     db.refresh(new_booking)
 
-    # Create booking item records for each product
     for item in booking.items:
+        product = products_map[item.productId]
 
-        product = products[item.productId]
-        
-        # Create a booking item row
         booking_item = BookingItem(
             booking_id=new_booking.id,
             product_id=item.productId,
             quantity=item.quantity,
             price_per_day=product.price_per_day,
-            deposit_amount=product.deposit_amount
+            deposit_amount=product.deposit_amount,
         )
-        # Add booking item to the database session
+
         db.add(booking_item)
 
     db.commit()
-    # Return success response
-    return {
-        "message": "Booking created successfully",
-        "bookingId": new_booking.id
-    }
+    db.refresh(new_booking)
+
+    return _build_booking_response(new_booking)
+
+
+def get_bookings_by_customer_service(db: Session, customer_id: int):
+    customer = db.query(User).filter(User.id == customer_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.customer_id == customer_id)
+        .order_by(Booking.created_at.desc())
+        .all()
+    )
+
+    return [_build_booking_response(booking) for booking in bookings]
+
+
+def get_bookings_by_store_service(db: Session, store_id: int):
+    store = db.query(Store).filter(Store.id == store_id).first()
+    if not store:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.store_id == store_id)
+        .order_by(Booking.created_at.desc())
+        .all()
+    )
+
+    return [_build_booking_response(booking) for booking in bookings]
+
+
+def cancel_booking_service(db: Session, booking_id: int):
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking.status == "cancelled":
+        raise HTTPException(status_code=400, detail="Booking is already cancelled")
+
+    booking.status = "cancelled"
+    db.commit()
+    db.refresh(booking)
+
+    return _build_booking_response(booking)
+
+
 def check_availability_service(
     db: Session,
     product_id: int,
@@ -92,6 +195,9 @@ def check_availability_service(
 ):
     if start_date > end_date:
         raise HTTPException(status_code=400, detail="Invalid date range")
+
+    if quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
 
     product = db.query(Product).filter(Product.id == product_id).first()
 

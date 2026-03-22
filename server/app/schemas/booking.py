@@ -8,7 +8,6 @@ class BookingItemCreate(BaseModel):
 
 
 class BookingCreate(BaseModel):
-    customerId: int
     storeId: int
     startDate: date
     endDate: date
@@ -20,6 +19,9 @@ class BookingItemOut(BaseModel):
     quantity: int
     pricePerDay: float
     depositAmount: float
+
+    class Config:
+        from_attributes = True
 
 
 class BookingOut(BaseModel):
@@ -33,6 +35,20 @@ class BookingOut(BaseModel):
     depositAmount: float
     items: list[BookingItemOut]
 
+    class Config:
+        from_attributes = True
+
+
+class BookingListResponse(BaseModel):
+    items: list[BookingOut]
+    total: int
+
+    class Config:
+        from_attributes = True
+
 
 class AvailabilityResponse(BaseModel):
     available: bool
+
+    class Config:
+        from_attributes = True

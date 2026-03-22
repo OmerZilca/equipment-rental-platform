@@ -15,3 +15,14 @@ class UserOut(BaseModel):
     email: str
     phoneNumber: str | None = None
     role: str
+
+    class Config:
+        from_attributes = True
+
+
+class UserListResponse(BaseModel):
+    items: list[UserOut]
+    total: int
+
+    class Config:
+        from_attributes = True

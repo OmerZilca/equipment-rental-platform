@@ -11,7 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Base, engine
 from app.db import models
 
-from app.api.routers import bookings, products, users
+from app.api.routers import bookings, products, users, stores
+from app.api.routers import auth
 
 app = FastAPI()
 
@@ -20,7 +21,8 @@ Base.metadata.create_all(bind=engine)
 app.include_router(bookings.router)
 app.include_router(products.router)
 app.include_router(users.router)
-
+app.include_router(stores.router)
+app.include_router(auth.router)
 # Configure CORS middleware:
 app.add_middleware(
     CORSMiddleware,
