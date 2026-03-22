@@ -16,14 +16,20 @@ class ProductOut(BaseModel):
     id: int
     storeId: int
     productName: str
-    description: str | None
-    category: str | None
+    description: str | None = None
+    category: str | None = None
     pricePerDay: float
     depositAmount: float
     totalQuantity: int
-    imageUrl: str | None
+    imageUrl: str | None = None
+
+    class Config:
+        from_attributes = True
 
 
 class ProductListResponse(BaseModel):
     items: list[ProductOut]
     total: int
+
+    class Config:
+        from_attributes = True
