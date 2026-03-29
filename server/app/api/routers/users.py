@@ -1,3 +1,8 @@
+"""User registration and listing (public).
+
+- POST /api/users — create a new account.
+- GET /api/users — list all users (count included).
+"""
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 

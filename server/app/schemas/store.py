@@ -6,6 +6,15 @@ class StoreCreate(BaseModel):
     description: str | None = None
     address: str | None = None
     openingHours: str | None = None
+    logoUrl: str | None = None
+
+
+class StoreUpdate(BaseModel):
+    storeName: str | None = None
+    description: str | None = None
+    address: str | None = None
+    openingHours: str | None = None
+    logoUrl: str | None = None
 
 
 class StoreOut(BaseModel):
@@ -15,6 +24,7 @@ class StoreOut(BaseModel):
     description: str | None = None
     address: str | None = None
     openingHours: str | None = None
+    logoUrl: str | None = None
 
     class Config:
         from_attributes = True

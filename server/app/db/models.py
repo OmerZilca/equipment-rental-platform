@@ -43,6 +43,7 @@ class Store(Base):
     description = Column(Text, nullable=True)
     address = Column(String(255), nullable=True)
     opening_hours = Column(String(100), nullable=True)
+    logo_url = Column(String(500), nullable=True)
 
     owner = relationship("User", back_populates="stores")
     products = relationship("Product", back_populates="store")
