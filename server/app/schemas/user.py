@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Literal
 
 
 class UserCreate(BaseModel):
@@ -6,7 +7,7 @@ class UserCreate(BaseModel):
     email: str
     phoneNumber: str | None = None
     password: str
-    role: str
+    role: Literal["customer", "business_owner"]
 
 
 class UserOut(BaseModel):

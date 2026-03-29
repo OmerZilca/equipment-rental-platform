@@ -5,6 +5,8 @@ export interface Equipment {
   pricePerDay: number;
   availableQuantity: number;
   imageUrl: string;
+  storeId: number;
+  storeName: string;
 }
 
 export interface EquipmentResponse {

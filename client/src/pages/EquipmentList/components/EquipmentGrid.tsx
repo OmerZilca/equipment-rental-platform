@@ -1,3 +1,6 @@
+/**
+ * Responsive grid of equipment cards.
+ */
 import React from "react";
 import EquipmentCard from "./EquipmentCard";
 import type { Equipment } from "../../../types";
@@ -8,7 +11,7 @@ type Props = {
 
 const EquipmentGrid: React.FC<Props> = ({ equipmentList }) => {
   return (
-    <div style={{ display: "flex", gap: "16px", flexWrap: "wrap" }}>
+    <div className="grid w-full min-w-0 grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {equipmentList.map((item) => (
         <EquipmentCard key={item.id} equipment={item} />
       ))}

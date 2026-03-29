@@ -1,3 +1,8 @@
+"""Login logic used by the auth router.
+
+Checks email (sent as OAuth2 username) and password, then returns a bearer
+access token with user id and role in the payload.
+"""
 from datetime import timedelta
 
 from fastapi import HTTPException

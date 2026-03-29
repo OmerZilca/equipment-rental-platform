@@ -1,3 +1,8 @@
+"""User accounts: sign-up and list all users.
+
+create_user_service — saves a new user with a hashed password; rejects duplicate email.
+get_users_service — returns every user as simple dicts for the API.
+"""
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
