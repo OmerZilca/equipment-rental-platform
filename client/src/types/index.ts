@@ -7,6 +7,9 @@ export interface Equipment {
   imageUrl: string;
   storeId: number;
   storeName: string;
+  /** From booking-based reviews only; 0 when none. */
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface EquipmentResponse {

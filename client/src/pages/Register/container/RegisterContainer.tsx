@@ -2,14 +2,16 @@
  * Registration: customer or business owner; then redirect to login.
  */
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import RegisterView from "../components/RegisterView";
 import { register } from "../../../services/api";
+import { getSafeReturnPath } from "../../../utils/returnNavigation";
 
 type Role = "customer" | "business_owner";
 
 const RegisterContainer: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -32,7 +34,17 @@ const RegisterContainer: React.FC = () => {
         role,
       });
       setSuccess("Account created. Please login.");
-      setTimeout(() => navigate("/login"), 600);
+      const returnTo = getSafeReturnPath(
+        (location.state as { from?: string } | null)?.from
+      );
+      setTimeout(
+        () =>
+          navigate("/login", {
+            replace: true,
+            state: returnTo ? { from: returnTo } : undefined,
+          }),
+        600
+      );
     } catch {
       setError("Registration failed. Email might already exist.");
     } finally {

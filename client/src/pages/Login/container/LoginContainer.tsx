@@ -1,13 +1,16 @@
 /**
- * Login flow: calls API, saves role, dispatches `auth:changed`, redirects home.
+ * Login flow: calls API, saves role, dispatches `auth:changed`, then redirects
+ * to `location.state.from` when present and safe, otherwise home.
  */
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import LoginView from "../components/LoginView";
 import { getCurrentUser, login } from "../../../services/api";
+import { getSafeReturnPath } from "../../../utils/returnNavigation";
 
 const LoginContainer: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,8 +24,13 @@ const LoginContainer: React.FC = () => {
       localStorage.setItem("auth_email", email.trim());
       const me = await getCurrentUser();
       localStorage.setItem("auth_role", me.role);
+      localStorage.setItem("auth_full_name", me.fullName);
       window.dispatchEvent(new Event("auth:changed"));
-      navigate("/");
+      const redirectTo =
+        getSafeReturnPath(
+          (location.state as { from?: string } | null)?.from
+        ) ?? "/";
+      navigate(redirectTo, { replace: true });
     } catch {
       setError("Login failed. Check your credentials.");
     } finally {

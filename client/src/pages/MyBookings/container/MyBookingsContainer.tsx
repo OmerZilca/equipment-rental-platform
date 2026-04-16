@@ -2,6 +2,7 @@
  * Customer bookings: load `/api/bookings/me`, split future/past, cancel with guards.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import MyBookingsView from "../components/MyBookingsView";
 import {
@@ -10,6 +11,7 @@ import {
   hydrateAuthRoleIfNeeded,
   isCustomer,
   isLoggedIn,
+  submitBookingReview,
 } from "../../../services/api";
 
 type Booking = {
@@ -19,7 +21,28 @@ type Booking = {
   startDate: string;
   endDate: string;
   status: string;
+  imageUrl?: string;
+  hasReview?: boolean;
+  canReview?: boolean;
 };
+
+function reviewApiError(err: unknown): string {
+  if (!axios.isAxiosError(err)) return "";
+  const d = err.response?.data as { detail?: unknown } | undefined;
+  const detail = d?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) =>
+        typeof item === "object" && item !== null && "msg" in item
+          ? String((item as { msg: string }).msg)
+          : ""
+      )
+      .filter(Boolean)
+      .join(" ");
+  }
+  return "";
+}
 
 const todayString = () => new Date().toISOString().split("T")[0];
 
@@ -30,6 +53,9 @@ const MyBookingsContainer: React.FC = () => {
   const [error, setError] = useState("");
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState("");
+  const [reviewBooking, setReviewBooking] = useState<Booking | null>(null);
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -103,6 +129,30 @@ const MyBookingsContainer: React.FC = () => {
     }
   };
 
+  const handleSubmitReview = async (
+    rating: number | null,
+    comment: string
+  ) => {
+    if (!reviewBooking) return;
+    setReviewError("");
+    setReviewSubmitting(true);
+    try {
+      await submitBookingReview({
+        bookingId: reviewBooking.id,
+        rating: rating ?? null,
+        comment: comment.trim() === "" ? null : comment.trim(),
+      });
+      setReviewBooking(null);
+      await fetchData();
+    } catch (err) {
+      setReviewError(
+        reviewApiError(err) || "Could not submit your review. Try again."
+      );
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-20 text-center text-sm font-medium text-slate-500">
@@ -135,6 +185,15 @@ const MyBookingsContainer: React.FC = () => {
         onCancel={handleCancel}
         cancellingId={cancellingId}
         successMessage={successMessage}
+        reviewBooking={reviewBooking}
+        onOpenReview={setReviewBooking}
+        onCloseReview={() => {
+          setReviewBooking(null);
+          setReviewError("");
+        }}
+        onSubmitReview={handleSubmitReview}
+        reviewSubmitting={reviewSubmitting}
+        reviewError={reviewError}
       />
     </div>
   );

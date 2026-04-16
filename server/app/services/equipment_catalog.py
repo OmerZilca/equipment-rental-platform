@@ -8,6 +8,7 @@ get_equipment_detail — one product by id, or None if missing.
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Product
+from app.services.review_service import get_product_rating_summary
 
 
 def _product_to_item(p: Product) -> dict:
@@ -46,4 +47,8 @@ def get_equipment_detail(db: Session, equipment_id: int) -> dict | None:
     )
     if not p:
         return None
-    return _product_to_item(p)
+    data = _product_to_item(p)
+    avg, cnt = get_product_rating_summary(db, equipment_id)
+    data["averageRating"] = avg
+    data["reviewCount"] = cnt
+    return data
