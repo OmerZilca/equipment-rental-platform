@@ -11,6 +11,11 @@ import {
   checkAvailability,
   isLoggedIn,
   isBusinessOwner,
+  getWishlist,
+  addToWishlist,
+  removeFromWishlist,
+  getEquipmentReviews,
+  type EquipmentReviewRow,
 } from "../../../services/api";
 import type { Equipment } from "../../../types";
 
@@ -83,7 +88,17 @@ const EquipmentDetailsContainer: React.FC = () => {
     availableQuantity: number;
     overlappingQuantity: number;
   }>(null);
-  
+
+  const [wishlistInList, setWishlistInList] = useState(false);
+  const [wishlistBusy, setWishlistBusy] = useState(false);
+  const [wishlistError, setWishlistError] = useState("");
+
+  const [equipmentReviews, setEquipmentReviews] = useState<EquipmentReviewRow[]>(
+    []
+  );
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+
   // Fetch equipment details when the page loads or when the ID changes
   useEffect(() => {
     const fetchEquipment = async () => {
@@ -105,6 +120,84 @@ const EquipmentDetailsContainer: React.FC = () => {
 
     fetchEquipment();
   }, [id]);
+
+  useEffect(() => {
+    if (!equipment?.id) return;
+    let cancelled = false;
+    const loadReviews = async () => {
+      setReviewsLoading(true);
+      setReviewsError("");
+      try {
+        const data = await getEquipmentReviews(equipment.id);
+        if (!cancelled) setEquipmentReviews(data.items);
+      } catch {
+        if (!cancelled) setReviewsError("Failed to load reviews.");
+      } finally {
+        if (!cancelled) setReviewsLoading(false);
+      }
+    };
+    void loadReviews();
+    return () => {
+      cancelled = true;
+    };
+  }, [equipment?.id]);
+
+  useEffect(() => {
+    if (!equipment || !isLoggedIn()) {
+      setWishlistInList(false);
+      setWishlistError("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getWishlist();
+        if (cancelled) return;
+        setWishlistInList(data.items.some((item) => item.id === equipment.id));
+      } catch {
+        if (!cancelled) setWishlistInList(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [equipment]);
+
+  const handleAddWishlist = async () => {
+    if (!equipment) return;
+    setWishlistBusy(true);
+    setWishlistError("");
+    try {
+      await addToWishlist(equipment.id);
+      setWishlistInList(true);
+    } catch (err) {
+      const detail = apiErrorDetail(err);
+      setWishlistError(
+        detail ||
+          "We could not add this item to your wish list. Try signing in again."
+      );
+    } finally {
+      setWishlistBusy(false);
+    }
+  };
+
+  const handleRemoveWishlist = async () => {
+    if (!equipment) return;
+    setWishlistBusy(true);
+    setWishlistError("");
+    try {
+      await removeFromWishlist(equipment.id);
+      setWishlistInList(false);
+    } catch (err) {
+      const detail = apiErrorDetail(err);
+      setWishlistError(
+        detail || "We could not remove this item from your wish list."
+      );
+    } finally {
+      setWishlistBusy(false);
+    }
+  };
+
   // Check equipment availability for selected dates and quantity
   const handleCheckAvailability = async () => {
     if (!equipment) return;
@@ -217,6 +310,15 @@ const EquipmentDetailsContainer: React.FC = () => {
     onCheckAvailability={handleCheckAvailability}
     availabilityResult={availabilityResult}
     availabilityError={availabilityError}
+    wishlistLoggedIn={isLoggedIn()}
+    wishlistInList={wishlistInList}
+    wishlistBusy={wishlistBusy}
+    wishlistError={wishlistError}
+    onAddWishlist={handleAddWishlist}
+    onRemoveWishlist={handleRemoveWishlist}
+    equipmentReviews={equipmentReviews}
+    reviewsLoading={reviewsLoading}
+    reviewsError={reviewsError}
   />
 );
 };

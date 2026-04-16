@@ -2,17 +2,22 @@
 
 - POST /api/stores — create a store (logged-in user becomes owner).
 - GET /api/stores/mine — stores owned by the current user.
+- GET /api/stores/mine/stats — monthly revenue (returned bookings only) and top products.
 - PATCH /api/stores/mine — update the owner’s store.
 - GET /api/stores — list all stores (public).
 - GET /api/stores/{store_id} — one store’s public profile (404 if missing).
 """
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.auth import get_current_user
 from app.db.database import get_db
 from app.db.models import Store, User
+from app.schemas.booking import StoreStatsOut
 from app.schemas.store import StoreCreate, StoreOut, StoreListResponse, StoreUpdate
+from app.services.bookings_service import get_owner_store_stats_service
 from app.services.stores_service import (
     create_store_service,
     get_all_stores_service,
@@ -58,6 +63,25 @@ def patch_my_store(
         openingHours=store.opening_hours,
         logoUrl=store.logo_url,
     )
+
+
+@router.get("/mine/stats", response_model=StoreStatsOut)
+def get_my_store_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    year: int | None = Query(None, ge=2000, le=2100),
+    month: int | None = Query(None, ge=1, le=12),
+):
+    if current_user.role != "business_owner":
+        raise HTTPException(
+            status_code=403,
+            detail="Only business owners can view store statistics.",
+        )
+    today = date.today()
+    y = year if year is not None else today.year
+    m = month if month is not None else today.month
+    data = get_owner_store_stats_service(db, current_user.id, y, m)
+    return StoreStatsOut(**data)
 
 
 @router.get("/mine", response_model=StoreListResponse)

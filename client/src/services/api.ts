@@ -7,6 +7,7 @@ import type { Equipment, EquipmentResponse } from "../types";
 
 const AUTH_TOKEN_KEY = "auth_token";
 const AUTH_ROLE_KEY = "auth_role";
+const AUTH_FULL_NAME_KEY = "auth_full_name";
 
 export type CurrentUser = {
   id: number;
@@ -94,6 +95,7 @@ export const logout = () => {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem("auth_email");
   localStorage.removeItem(AUTH_ROLE_KEY);
+  localStorage.removeItem(AUTH_FULL_NAME_KEY);
   delete api.defaults.headers.common.Authorization;
   window.dispatchEvent(new Event("auth:changed"));
 };
@@ -106,12 +108,22 @@ export const isBusinessOwner = () =>
 export const isCustomer = () =>
   localStorage.getItem(AUTH_ROLE_KEY) === "customer";
 
-/** Fetches `/api/auth/me` once per session if the token exists but role is not cached (e.g. older logins). */
+/** Display name for the header (set on login; refreshed if missing). */
+export const getAuthDisplayName = (): string => {
+  const name = localStorage.getItem(AUTH_FULL_NAME_KEY)?.trim();
+  if (name) return name;
+  return localStorage.getItem("auth_email")?.trim() ?? "";
+};
+
+/** Fetches `/api/auth/me` if token exists but role or display name is not cached. */
 export const hydrateAuthRoleIfNeeded = async (): Promise<void> => {
-  if (!isLoggedIn() || localStorage.getItem(AUTH_ROLE_KEY)) return;
+  if (!isLoggedIn()) return;
+  if (localStorage.getItem(AUTH_ROLE_KEY) && localStorage.getItem(AUTH_FULL_NAME_KEY))
+    return;
   try {
     const me = await getCurrentUser();
     localStorage.setItem(AUTH_ROLE_KEY, me.role);
+    localStorage.setItem(AUTH_FULL_NAME_KEY, me.fullName);
     window.dispatchEvent(new Event("auth:changed"));
   } catch {
     /* token invalid or network */
@@ -248,6 +260,93 @@ export const cancelBooking = async (bookingId: number) => {
   return response.data;
 };
 
+export type FulfillmentStatus =
+  | "pending"
+  | "picked_up"
+  | "returned"
+  | "not_picked_up";
+
+export type BookingOut = {
+  id: number;
+  equipmentId: number;
+  quantity: number;
+  startDate: string;
+  endDate: string;
+  status: string;
+  imageUrl: string;
+  hasReview: boolean;
+  canReview: boolean;
+  fulfillmentStatus: FulfillmentStatus;
+  returnedAt: string | null;
+  customerName: string | null;
+  damageNotes: string | null;
+  damageReportedAt: string | null;
+  /** Owner list only; true when damage may be filed or updated (24h + no later pickup). */
+  damageReportAllowed?: boolean;
+};
+
+export type BookingListResponse = {
+  items: BookingOut[];
+  total: number;
+};
+
+/** Owner: all bookings across owned stores. */
+export const getMyStoreBookings = async (): Promise<BookingListResponse> => {
+  const response = await api.get<BookingListResponse>(
+    "/api/bookings/store/mine"
+  );
+  return response.data;
+};
+
+export const updateBookingFulfillment = async (
+  bookingId: number,
+  fulfillmentStatus: FulfillmentStatus
+): Promise<BookingOut> => {
+  const response = await api.patch<BookingOut>(
+    `/api/bookings/${bookingId}/fulfillment`,
+    { fulfillmentStatus }
+  );
+  return response.data;
+};
+
+export const reportBookingDamage = async (
+  bookingId: number,
+  description: string
+): Promise<BookingOut> => {
+  const response = await api.patch<BookingOut>(
+    `/api/bookings/${bookingId}/damage-report`,
+    { description }
+  );
+  return response.data;
+};
+
+export const clearBookingDamageReport = async (
+  bookingId: number
+): Promise<BookingOut> => {
+  const response = await api.delete<BookingOut>(
+    `/api/bookings/${bookingId}/damage-report`
+  );
+  return response.data;
+};
+
+export type StoreStatsOut = {
+  year: number;
+  month: number;
+  revenue: number;
+  returnedBookingsCount: number;
+  topProducts: { productId: number; productName: string; unitsRented: number }[];
+};
+
+export const getMyStoreStats = async (params: {
+  year: number;
+  month: number;
+}): Promise<StoreStatsOut> => {
+  const response = await api.get<StoreStatsOut>("/api/stores/mine/stats", {
+    params: { year: params.year, month: params.month },
+  });
+  return response.data;
+};
+
 export const checkAvailability = async (
   equipmentId: number,
   startDate: string,
@@ -263,6 +362,66 @@ export const checkAvailability = async (
     },
   });
 
+  return response.data;
+};
+
+/** Wish list: saved equipment for the signed-in user (any role). */
+export const getWishlist = async (): Promise<EquipmentResponse> => {
+  const response = await api.get<EquipmentResponse>("/api/wishlist");
+  return response.data;
+};
+
+export const addToWishlist = async (
+  equipmentId: number
+): Promise<Equipment> => {
+  const response = await api.post<Equipment>("/api/wishlist", {
+    equipmentId,
+  });
+  return response.data;
+};
+
+export const removeFromWishlist = async (
+  equipmentId: number
+): Promise<void> => {
+  await api.delete(`/api/wishlist/${equipmentId}`);
+};
+
+export type EquipmentReviewRow = {
+  id: number;
+  rating?: number | null;
+  comment?: string | null;
+  reviewerName: string;
+  createdAt: string | null;
+};
+
+export type EquipmentReviewsResponse = {
+  items: EquipmentReviewRow[];
+  total: number;
+  averageRating: number;
+  reviewCount: number;
+};
+
+export const getEquipmentReviews = async (
+  equipmentId: number
+): Promise<EquipmentReviewsResponse> => {
+  const response = await api.get<EquipmentReviewsResponse>(
+    `/api/equipment/${equipmentId}/reviews`
+  );
+  return response.data;
+};
+
+export const submitBookingReview = async (body: {
+  bookingId: number;
+  rating?: number | null;
+  comment?: string | null;
+}): Promise<{
+  id: number;
+  bookingId: number;
+  productId: number;
+  rating?: number | null;
+  comment?: string | null;
+}> => {
+  const response = await api.post("/api/reviews", body);
   return response.data;
 };
 

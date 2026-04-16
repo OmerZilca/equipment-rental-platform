@@ -2,7 +2,17 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import MyBookingsView from "./MyBookingsView";
+
+const reviewProps = {
+  reviewBooking: null,
+  onOpenReview: vi.fn(),
+  onCloseReview: vi.fn(),
+  onSubmitReview: vi.fn(),
+  reviewSubmitting: false,
+  reviewError: "",
+};
 
 const futureBooking = {
   id: 42,
@@ -19,14 +29,17 @@ describe("MyBookingsView", () => {
     const onCancel = vi.fn();
 
     render(
-      <MyBookingsView
-        current={[]}
-        future={[futureBooking]}
-        history={[]}
-        onCancel={onCancel}
-        cancellingId={null}
-        successMessage=""
-      />
+      <MemoryRouter>
+        <MyBookingsView
+          current={[]}
+          future={[futureBooking]}
+          history={[]}
+          onCancel={onCancel}
+          cancellingId={null}
+          successMessage=""
+          {...reviewProps}
+        />
+      </MemoryRouter>
     );
 
     expect(screen.getByText(/future bookings/i)).toBeInTheDocument();
@@ -36,14 +49,17 @@ describe("MyBookingsView", () => {
 
   it("shows success message when provided", () => {
     render(
-      <MyBookingsView
-        current={[]}
-        future={[]}
-        history={[]}
-        onCancel={vi.fn()}
-        cancellingId={null}
-        successMessage="Booking #42 cancelled."
-      />
+      <MemoryRouter>
+        <MyBookingsView
+          current={[]}
+          future={[]}
+          history={[]}
+          onCancel={vi.fn()}
+          cancellingId={null}
+          successMessage="Booking #42 cancelled."
+          {...reviewProps}
+        />
+      </MemoryRouter>
     );
     expect(screen.getByText(/booking #42 cancelled/i)).toBeInTheDocument();
   });

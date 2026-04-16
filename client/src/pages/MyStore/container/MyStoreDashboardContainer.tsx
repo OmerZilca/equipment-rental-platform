@@ -11,9 +11,17 @@ import {
   getCurrentUser,
   getMyProducts,
   getMyStores,
+  getMyStoreBookings,
+  getMyStoreStats,
   isLoggedIn,
+  type BookingOut,
+  type FulfillmentStatus,
   type ProductOut,
   type StoreOut,
+  type StoreStatsOut,
+  updateBookingFulfillment,
+  reportBookingDamage,
+  clearBookingDamageReport,
   updateMyStore,
   updateProduct,
   uploadProductImage,
@@ -60,6 +68,30 @@ const MyStoreDashboardContainer: React.FC = () => {
   const [editError, setEditError] = useState("");
   const [editImageUploading, setEditImageUploading] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<"catalog" | "orders" | "stats">(
+    "catalog"
+  );
+  const [storeBookings, setStoreBookings] = useState<BookingOut[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState("");
+  const [fulfillmentUpdatingId, setFulfillmentUpdatingId] = useState<
+    number | null
+  >(null);
+
+  const [damageModalBooking, setDamageModalBooking] =
+    useState<BookingOut | null>(null);
+  const [damageNotesDraft, setDamageNotesDraft] = useState("");
+  const [damageModalSaving, setDamageModalSaving] = useState(false);
+  const [damageModalError, setDamageModalError] = useState("");
+
+  const [statsYear, setStatsYear] = useState(() => new Date().getFullYear());
+  const [statsMonth, setStatsMonth] = useState(
+    () => new Date().getMonth() + 1
+  );
+  const [stats, setStats] = useState<StoreStatsOut | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState("");
+
   const loadProducts = useCallback(async () => {
     const data = await getMyProducts();
     setProducts(data.items);
@@ -72,6 +104,54 @@ const MyStoreDashboardContainer: React.FC = () => {
     setEditAddress(s.address ?? "");
     setEditOpeningHours(s.openingHours ?? "");
   }, []);
+
+  const loadOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    setOrdersError("");
+    try {
+      const data = await getMyStoreBookings();
+      setStoreBookings(data.items);
+    } catch (e: unknown) {
+      setOrdersError(apiErrorMessage(e, "Could not load orders."));
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError("");
+    try {
+      const data = await getMyStoreStats({
+        year: statsYear,
+        month: statsMonth,
+      });
+      setStats(data);
+    } catch (e: unknown) {
+      setStatsError(apiErrorMessage(e, "Could not load statistics."));
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [statsYear, statsMonth]);
+
+  useEffect(() => {
+    if (activeTab !== "orders") return;
+    void loadOrders();
+  }, [activeTab, loadOrders]);
+
+  useEffect(() => {
+    if (activeTab !== "stats") return;
+    void loadStats();
+  }, [activeTab, loadStats]);
+
+  useEffect(() => {
+    if (activeTab !== "orders") {
+      setDamageModalBooking(null);
+      setDamageNotesDraft("");
+      setDamageModalError("");
+    }
+  }, [activeTab]);
 
   const bootstrap = useCallback(async () => {
     const storesRes = await getMyStores();
@@ -305,6 +385,80 @@ const MyStoreDashboardContainer: React.FC = () => {
     }
   };
 
+  const handleOpenDamageReport = (b: BookingOut) => {
+    setDamageModalError("");
+    setDamageNotesDraft(b.damageNotes ?? "");
+    setDamageModalBooking(b);
+  };
+
+  const handleCloseDamageModal = () => {
+    setDamageModalBooking(null);
+    setDamageNotesDraft("");
+    setDamageModalError("");
+  };
+
+  const handleSubmitDamageReport = async () => {
+    if (!damageModalBooking) return;
+    const text = damageNotesDraft.trim();
+    if (!text) {
+      setDamageModalError("Please describe the damage.");
+      return;
+    }
+    setDamageModalSaving(true);
+    setDamageModalError("");
+    try {
+      await reportBookingDamage(damageModalBooking.id, text);
+      await loadOrders();
+      handleCloseDamageModal();
+    } catch (e: unknown) {
+      setDamageModalError(
+        apiErrorMessage(e, "Could not save the damage report.")
+      );
+    } finally {
+      setDamageModalSaving(false);
+    }
+  };
+
+  const handleClearDamageReport = async () => {
+    if (!damageModalBooking) return;
+    if (
+      !window.confirm(
+        "Remove this damage report from the booking? You can file a new report later if needed."
+      )
+    ) {
+      return;
+    }
+    setDamageModalSaving(true);
+    setDamageModalError("");
+    try {
+      await clearBookingDamageReport(damageModalBooking.id);
+      await loadOrders();
+      handleCloseDamageModal();
+    } catch (e: unknown) {
+      setDamageModalError(
+        apiErrorMessage(e, "Could not remove the damage report.")
+      );
+    } finally {
+      setDamageModalSaving(false);
+    }
+  };
+
+  const handleChangeFulfillment = async (
+    bookingId: number,
+    fulfillmentStatus: FulfillmentStatus
+  ) => {
+    setFulfillmentUpdatingId(bookingId);
+    setOrdersError("");
+    try {
+      await updateBookingFulfillment(bookingId, fulfillmentStatus);
+      await loadOrders();
+    } catch (e: unknown) {
+      setOrdersError(apiErrorMessage(e, "Could not update status."));
+    } finally {
+      setFulfillmentUpdatingId(null);
+    }
+  };
+
   const handleDeleteProduct = async () => {
     if (!editing) return;
     if (
@@ -358,6 +512,29 @@ const MyStoreDashboardContainer: React.FC = () => {
 
   return (
     <MyStoreDashboardView
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      storeBookings={storeBookings}
+      ordersLoading={ordersLoading}
+      ordersError={ordersError}
+      fulfillmentUpdatingId={fulfillmentUpdatingId}
+      onChangeFulfillment={handleChangeFulfillment}
+      damageModalBooking={damageModalBooking}
+      damageNotesDraft={damageNotesDraft}
+      setDamageNotesDraft={setDamageNotesDraft}
+      damageModalSaving={damageModalSaving}
+      damageModalError={damageModalError}
+      onOpenDamageReport={handleOpenDamageReport}
+      onCloseDamageModal={handleCloseDamageModal}
+      onSubmitDamageReport={handleSubmitDamageReport}
+      onClearDamageReport={handleClearDamageReport}
+      statsYear={statsYear}
+      statsMonth={statsMonth}
+      onStatsYearChange={setStatsYear}
+      onStatsMonthChange={setStatsMonth}
+      stats={stats}
+      statsLoading={statsLoading}
+      statsError={statsError}
       store={store}
       storeEditing={storeEditing}
       onStartEditStore={handleStartEditStore}

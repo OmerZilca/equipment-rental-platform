@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 from app.schemas.booking import AvailabilityResponse
+from app.schemas.review import ReviewListResponse
 from app.services.bookings_service import check_availability_service
 from app.db.database import get_db
+from app.db.models import Product
 from app.services.equipment_catalog import get_equipment_detail, list_equipment
+from app.services import review_service
 
 # Create router with a common prefix and tag
 router = APIRouter(prefix="/api/equipment", tags=["equipment"])
@@ -21,6 +24,14 @@ router = APIRouter(prefix="/api/equipment", tags=["equipment"])
 @router.get("")
 def list_equipment_endpoint(db: Session = Depends(get_db)):
     return list_equipment(db)
+
+
+@router.get("/{equipment_id}/reviews", response_model=ReviewListResponse)
+def list_equipment_reviews(equipment_id: int, db: Session = Depends(get_db)):
+    if not db.query(Product).filter(Product.id == equipment_id).first():
+        raise HTTPException(status_code=404, detail="Equipment not found")
+    payload = review_service.list_product_reviews(db, equipment_id)
+    return ReviewListResponse(**payload)
 
 
 # Return details of one equipment item

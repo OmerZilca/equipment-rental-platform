@@ -3,6 +3,8 @@ import { Camera, LogOut } from "lucide-react";
 
 type Props = {
   loggedIn: boolean;
+  /** Full name (or email fallback); empty when guest. */
+  displayName: string;
   showCustomerNav: boolean;
   showOwnerNav: boolean;
   onLogout: () => void;
@@ -10,6 +12,7 @@ type Props = {
 
 export default function AppHeader({
   loggedIn,
+  displayName,
   showCustomerNav,
   showOwnerNav,
   onLogout,
@@ -49,6 +52,16 @@ export default function AppHeader({
             >
               Home
             </NavLink>
+            {loggedIn ? (
+              <NavLink
+                to="/wishlist"
+                className={({ isActive }) =>
+                  `${pill} ${isActive ? "bg-white text-brand-600 shadow-sm" : "text-slate-600 hover:text-slate-900"}`
+                }
+              >
+                Wish list
+              </NavLink>
+            ) : null}
             {loggedIn && showCustomerNav ? (
               <NavLink
                 to="/my-bookings"
@@ -71,9 +84,18 @@ export default function AppHeader({
             ) : null}
           </div>
 
-          <span className="hidden text-xs font-medium text-slate-400 lg:inline">
-            {loggedIn ? "Signed in" : "Guest"}
-          </span>
+          {loggedIn ? (
+            <span
+              className="max-w-[10rem] truncate text-xs font-semibold text-slate-600 sm:max-w-[14rem] md:max-w-[18rem] lg:max-w-none"
+              title={displayName || undefined}
+            >
+              {displayName ? `HELLO, ${displayName}` : "Signed in"}
+            </span>
+          ) : (
+            <span className="hidden text-xs font-medium text-slate-400 lg:inline">
+              Guest
+            </span>
+          )}
 
           {loggedIn ? (
             <button
