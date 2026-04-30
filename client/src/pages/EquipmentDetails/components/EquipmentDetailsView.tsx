@@ -105,13 +105,10 @@ const EquipmentDetailsView: React.FC<Props> = ({
   };
   const guestWishlistWrapRef = useRef<HTMLDivElement>(null);
   const [guestAuthPopoverOpen, setGuestAuthPopoverOpen] = useState(false);
+  const guestAuthPopoverVisible = guestAuthPopoverOpen && !wishlistLoggedIn;
 
   useEffect(() => {
-    if (wishlistLoggedIn) setGuestAuthPopoverOpen(false);
-  }, [wishlistLoggedIn]);
-
-  useEffect(() => {
-    if (!guestAuthPopoverOpen) return;
+    if (!guestAuthPopoverVisible) return;
     const onPointerDown = (e: PointerEvent) => {
       const el = guestWishlistWrapRef.current;
       if (el && !el.contains(e.target as Node)) {
@@ -120,7 +117,7 @@ const EquipmentDetailsView: React.FC<Props> = ({
     };
     document.addEventListener("pointerdown", onPointerDown);
     return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [guestAuthPopoverOpen]);
+  }, [guestAuthPopoverVisible]);
 
   return (
     <main className="mx-auto max-w-[1200px] px-4 py-8 md:px-6 md:py-10">
@@ -235,7 +232,7 @@ const EquipmentDetailsView: React.FC<Props> = ({
                   onClick={() =>
                     setGuestAuthPopoverOpen((open) => !open)
                   }
-                  aria-expanded={guestAuthPopoverOpen}
+                  aria-expanded={guestAuthPopoverVisible}
                   aria-haspopup="true"
                   aria-label="Wish list — log in or register"
                   title="Wish list"
@@ -248,7 +245,7 @@ const EquipmentDetailsView: React.FC<Props> = ({
                     aria-hidden
                   />
                 </button>
-                {guestAuthPopoverOpen ? (
+                {guestAuthPopoverVisible ? (
                   <div
                     className="absolute left-0 top-[calc(100%+0.5rem)] z-30 min-w-[11rem] rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg"
                     role="menu"

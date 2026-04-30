@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.exc import UnknownHashError
 
 SECRET_KEY = "change-this-to-a-long-random-secret-key"
 ALGORITHM = "HS256"
@@ -11,7 +12,11 @@ pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        # Treat unknown/legacy hashes as invalid credentials instead of crashing.
+        return False
 
 
 def get_password_hash(password: str) -> str:
