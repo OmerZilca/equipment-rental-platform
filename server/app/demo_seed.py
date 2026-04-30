@@ -3,9 +3,11 @@
 from sqlalchemy.orm import Session
 
 from app.catalog_seed import DEMO_BUSINESSES, default_public_base, upload_file_url
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.db import models
 from app.db.database import SessionLocal
+
+_DEMO_PASSWORD = "123456"
 
 
 def run_demo_seed(public_base: str | None = None) -> None:
@@ -28,11 +30,15 @@ def _run_demo_seed_session(db: Session, public_base: str) -> None:
             full_name="Demo Customer",
             email="customer@example.com",
             phone_number="0500000001",
-            password_hash=get_password_hash("123456"),
+            password_hash=get_password_hash(_DEMO_PASSWORD),
             role="customer",
         )
         db.add(customer)
         db.flush()
+    else:
+        # If the demo user exists with an unknown/legacy hash, refresh it so login works.
+        if not verify_password(_DEMO_PASSWORD, customer.password_hash):
+            customer.password_hash = get_password_hash(_DEMO_PASSWORD)
 
     for biz in DEMO_BUSINESSES:
         _seed_one_business(db, public_base, biz)
@@ -45,11 +51,15 @@ def _seed_one_business(db: Session, public_base: str, biz: dict) -> None:
             full_name=biz["owner_full_name"],
             email=biz["owner_email"],
             phone_number=biz["owner_phone"],
-            password_hash=get_password_hash("123456"),
+            password_hash=get_password_hash(_DEMO_PASSWORD),
             role="business_owner",
         )
         db.add(owner)
         db.flush()
+    else:
+        # Same for owners: keep demo accounts loginable across schema/hash changes.
+        if not verify_password(_DEMO_PASSWORD, owner.password_hash):
+            owner.password_hash = get_password_hash(_DEMO_PASSWORD)
 
     store_meta = biz["store"]
     store = db.query(models.Store).filter(models.Store.owner_id == owner.id).first()

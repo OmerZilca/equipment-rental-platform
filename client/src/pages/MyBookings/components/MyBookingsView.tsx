@@ -1,7 +1,7 @@
 /**
  * Lists current, upcoming, and past bookings; cancel button for eligible rows.
  */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
 
@@ -134,11 +134,6 @@ const ReviewModal: React.FC<{
 }> = ({ booking, onClose, onSubmit, submitting, error }) => {
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState("");
-
-  useEffect(() => {
-    setRating(null);
-    setComment("");
-  }, [booking.id]);
 
   const canSend =
     !submitting &&
@@ -330,6 +325,7 @@ const MyBookingsView: React.FC<Props> = ({
 
       {reviewBooking ? (
         <ReviewModal
+          key={reviewBooking.id}
           booking={reviewBooking}
           onClose={onCloseReview}
           onSubmit={onSubmitReview}
